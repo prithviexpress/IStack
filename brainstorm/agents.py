@@ -164,6 +164,14 @@ Produce a structured BLUE OCEAN BRIEF using exactly this format:
 ## THE BIG VISION
 (The 10-year version if this works — why it matters at genuine scale)
 
+## THE ERRC GRID
+| Action | What |
+|--------|------|
+| **Eliminate** | [factors the industry competes on that should be dropped entirely] |
+| **Reduce** | [factors that should be reduced well below industry standard] |
+| **Raise** | [factors that should be raised well above industry standard] |
+| **Create** | [factors never offered before that the industry should introduce] |
+
 ## FIRST MOVE
 (The single thing to do in the next 30 days to begin testing the core thesis)
 
