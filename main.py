@@ -35,6 +35,24 @@ def _print_banner() -> None:
     console.print()
 
 
+def _prompt_context() -> dict:
+    console.print("[dim]Add context to sharpen the analysis — press Enter to skip.[/dim]")
+    console.print()
+    prompts = [
+        ("country",         "Country / Region",   "e.g. India, Southeast Asia, Nigeria"),
+        ("industry",        "Industry / Sector",  "e.g. FinTech, AgriTech, Healthcare"),
+        ("stage",           "Stage",              "Early idea / Pre-revenue MVP / Early traction / Scaling"),
+        ("target_audience", "Target Audience",    "e.g. gig workers, SME owners, rural farmers"),
+        ("notes",           "Notes / Constraints","budget, team size, market context, goals…"),
+    ]
+    ctx: dict = {}
+    for key, label, hint in prompts:
+        val = console.input(f"  [dim]{label}[/dim] [dim italic]({hint})[/dim]: ").strip()
+        ctx[key] = val
+    console.print()
+    return ctx
+
+
 def _save_session(seed_idea: str, outputs: list[dict], path: Path) -> None:
     lines = [
         f"# IdeaStack Session — {datetime.now().strftime('%Y-%m-%d %H:%M')}",
@@ -130,8 +148,10 @@ def main() -> None:
             console.print("[red]No idea provided. Exiting.[/red]")
             sys.exit(1)
 
+    context = _prompt_context()
+
     orchestrator = BrainstormOrchestrator(api_key=api_key)
-    outputs = orchestrator.run(seed_idea)
+    outputs = orchestrator.run(seed_idea, context=context)
 
     if args.save:
         _save_session(seed_idea, outputs, Path(args.save))

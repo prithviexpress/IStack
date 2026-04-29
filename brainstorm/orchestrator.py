@@ -6,6 +6,7 @@ from rich.rule import Rule
 from rich.text import Text
 
 from .agents import AGENTS, AgentConfig
+from .utils import format_context
 
 console = Console()
 
@@ -28,17 +29,20 @@ class BrainstormOrchestrator:
             lines.append(entry["output"])
         return "\n".join(lines)
 
-    def _run_agent(self, agent: AgentConfig, seed_idea: str) -> str:
-        context = self._build_context(seed_idea)
+    def _run_agent(self, agent: AgentConfig, seed_idea: str, ctx_block: str = "") -> str:
+        panel_ctx = self._build_context(seed_idea)
 
-        if context:
+        if panel_ctx:
             user_content = (
-                f"## ORIGINAL SEED IDEA\n{seed_idea}\n\n---\n\n"
-                f"{context}\n\n---\n\n"
-                f"Now provide your analysis of the seed idea above, informed by the panel's work so far."
+                f"## ORIGINAL SEED IDEA\n{seed_idea}\n\n"
+                + (f"{ctx_block}\n\n" if ctx_block else "")
+                + f"---\n\n{panel_ctx}\n\n---\n\n"
+                + "Now provide your analysis of the seed idea above, informed by the panel's work so far."
             )
         else:
             user_content = f"## SEED IDEA\n\n{seed_idea}"
+            if ctx_block:
+                user_content += f"\n\n{ctx_block}"
 
         create_kwargs: dict = {
             "model": "claude-opus-4-7",
@@ -67,7 +71,9 @@ class BrainstormOrchestrator:
         print()  # newline after stream ends
         return "".join(full_output)
 
-    def run(self, seed_idea: str) -> list[dict]:
+    def run(self, seed_idea: str, context: dict | None = None) -> list[dict]:
+        ctx_block = format_context(context or {})
+
         console.print()
         console.print(
             Panel(
@@ -77,12 +83,14 @@ class BrainstormOrchestrator:
                 padding=(1, 2),
             )
         )
+        if ctx_block:
+            console.print(Panel(ctx_block, border_style="dim", padding=(0, 2)))
         console.print()
 
         for agent in AGENTS:
             _print_agent_header(agent)
 
-            output = self._run_agent(agent, seed_idea)
+            output = self._run_agent(agent, seed_idea, ctx_block)
 
             self.agent_outputs.append(
                 {

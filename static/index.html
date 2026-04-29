@@ -471,6 +471,50 @@
     #export-btn:hover { background: var(--surface2); }
     #export-btn.visible { display: flex; align-items: center; gap: 6px; }
 
+    /* ── Context form ── */
+    .ctx-toggle {
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--text-dim);
+      cursor: pointer;
+      user-select: none;
+    }
+    .ctx-toggle:hover { color: var(--text); }
+    #input-section.compact .ctx-toggle,
+    #input-section.compact .ctx-form { display: none !important; }
+
+    .ctx-form {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      max-width: 720px;
+      margin-top: 10px;
+    }
+    .ctx-form.open { display: flex; }
+    .ctx-row { display: flex; gap: 8px; }
+    .ctx-form input,
+    .ctx-form select,
+    .ctx-form textarea {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 13px;
+      padding: 9px 12px;
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    .ctx-form input::placeholder,
+    .ctx-form textarea::placeholder { color: var(--text-faint); }
+    .ctx-form input:focus,
+    .ctx-form select:focus,
+    .ctx-form textarea:focus { border-color: var(--text); }
+    .ctx-form select { cursor: pointer; appearance: auto; }
+    .ctx-form textarea { resize: vertical; min-height: 56px; }
+
     /* scrollbar */
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -503,6 +547,27 @@
     <button id="run-btn" onclick="startBrainstorm()">Brainstorm ▶</button>
   </div>
   <div id="agent-strip"></div>
+  <div class="ctx-toggle" onclick="toggleContext()">
+    <span id="ctx-label">+ Add context</span> <span id="ctx-arrow">▾</span>
+  </div>
+  <div id="context-form" class="ctx-form">
+    <div class="ctx-row">
+      <input id="ctx-country"  type="text" placeholder="Country / Region  (e.g. India, UK, SE Asia)">
+      <input id="ctx-industry" type="text" placeholder="Industry / Sector  (e.g. FinTech, AgriTech)">
+    </div>
+    <div class="ctx-row">
+      <select id="ctx-stage">
+        <option value="">Stage — optional</option>
+        <option value="Early idea">Early idea</option>
+        <option value="Validated concept">Validated concept</option>
+        <option value="Pre-revenue MVP">Pre-revenue MVP</option>
+        <option value="Early traction">Early traction</option>
+        <option value="Scaling">Scaling</option>
+      </select>
+      <input id="ctx-audience" type="text" placeholder="Target Audience  (e.g. gig workers, SMEs)">
+    </div>
+    <textarea id="ctx-notes" placeholder="Notes — budget, team size, constraints, goals…" rows="2"></textarea>
+  </div>
 </div>
 
 <!-- Workspace -->
@@ -838,7 +903,7 @@
       const response = await fetch("/brainstorm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ seed_idea: idea }),
+        body: JSON.stringify({ seed_idea: idea, context: getContext() }),
       });
 
       if (!response.ok) {
@@ -893,6 +958,26 @@
       e.preventDefault();
       startBrainstorm();
     }
+  }
+
+  // ── Context form toggle ──
+  function toggleContext() {
+    const form  = document.getElementById("context-form");
+    const arrow = document.getElementById("ctx-arrow");
+    const label = document.getElementById("ctx-label");
+    const open  = form.classList.toggle("open");
+    arrow.textContent = open ? "▴" : "▾";
+    label.textContent = open ? "− Hide context" : "+ Add context";
+  }
+
+  function getContext() {
+    return {
+      country:         document.getElementById("ctx-country").value.trim(),
+      industry:        document.getElementById("ctx-industry").value.trim(),
+      stage:           document.getElementById("ctx-stage").value.trim(),
+      target_audience: document.getElementById("ctx-audience").value.trim(),
+      notes:           document.getElementById("ctx-notes").value.trim(),
+    };
   }
 
   // ── Init on load ──

@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from .agents import AGENTS
+from .utils import format_context
 
 app = FastAPI(title="IdeaStack")
 
@@ -21,11 +22,20 @@ async def index():
     return HTMLResponse((_STATIC / "index.html").read_text())
 
 
+class BrainstormContext(BaseModel):
+    country: str = ""
+    industry: str = ""
+    stage: str = ""
+    target_audience: str = ""
+    notes: str = ""
+
+
 class BrainstormRequest(BaseModel):
     seed_idea: str
+    context: BrainstormContext = BrainstormContext()
 
 
-def _build_context(outputs: list[dict], seed_idea: str) -> str:
+def _build_panel_context(outputs: list[dict], seed_idea: str) -> str:
     if not outputs:
         return ""
     lines = [f"## ORIGINAL SEED IDEA\n{seed_idea}\n", "---", "## PANEL ANALYSIS SO FAR"]
@@ -35,7 +45,7 @@ def _build_context(outputs: list[dict], seed_idea: str) -> str:
     return "\n".join(lines)
 
 
-def _run_brainstorm(seed_idea: str, api_key: str, emit) -> None:
+def _run_brainstorm(seed_idea: str, api_key: str, emit, ctx_block: str = "") -> None:
     client = anthropic.Anthropic(api_key=api_key)
     outputs: list[dict] = []
 
@@ -49,14 +59,18 @@ def _run_brainstorm(seed_idea: str, api_key: str, emit) -> None:
             "total": len(AGENTS),
         })
 
-        ctx = _build_context(outputs, seed_idea)
-        if ctx:
+        panel_ctx = _build_panel_context(outputs, seed_idea)
+        if panel_ctx:
             user_msg = (
-                f"## ORIGINAL SEED IDEA\n{seed_idea}\n\n---\n\n{ctx}\n\n---\n\n"
-                "Now provide your analysis of the seed idea above, informed by the panel's work so far."
+                f"## ORIGINAL SEED IDEA\n{seed_idea}\n\n"
+                + (f"{ctx_block}\n\n" if ctx_block else "")
+                + f"---\n\n{panel_ctx}\n\n---\n\n"
+                + "Now provide your analysis of the seed idea above, informed by the panel's work so far."
             )
         else:
             user_msg = f"## SEED IDEA\n\n{seed_idea}"
+            if ctx_block:
+                user_msg += f"\n\n{ctx_block}"
 
         kwargs: dict = {
             "model": "claude-opus-4-7",
@@ -110,8 +124,10 @@ async def brainstorm(req: BrainstormRequest):
     def emit(event: str, data: dict) -> None:
         loop.call_soon_threadsafe(q.put_nowait, (event, data))
 
+    ctx_block = format_context(req.context.model_dump())
+
     def worker() -> None:
-        _run_brainstorm(req.seed_idea, api_key, emit)
+        _run_brainstorm(req.seed_idea, api_key, emit, ctx_block)
         loop.call_soon_threadsafe(q.put_nowait, None)
 
     threading.Thread(target=worker, daemon=True).start()
