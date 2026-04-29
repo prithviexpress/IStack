@@ -39,7 +39,7 @@ def _save_session(seed_idea: str, outputs: list[dict], path: Path) -> None:
     lines = [
         f"# IdeaStack Session — {datetime.now().strftime('%Y-%m-%d %H:%M')}",
         "",
-        f"## Seed Idea",
+        "## Seed Idea",
         "",
         seed_idea,
         "",
@@ -58,6 +58,30 @@ def _save_session(seed_idea: str, outputs: list[dict], path: Path) -> None:
     console.print(f"\n[dim]Session saved to[/dim] [bold]{path}[/bold]")
 
 
+def _serve(port: int) -> None:
+    try:
+        import uvicorn
+    except ImportError:
+        console.print("[bold red]Error:[/bold red] uvicorn not installed.")
+        console.print("Run: [bold]pip install fastapi uvicorn[/bold]")
+        sys.exit(1)
+
+    from brainstorm.server import app
+
+    url = f"http://localhost:{port}"
+    console.print()
+    console.print(Panel(
+        f"[bold white]IdeaStack Web UI[/bold white]\n\n"
+        f"  Open [bold cyan]{url}[/bold cyan] in your browser\n"
+        f"  Press [bold]Ctrl+C[/bold] to stop",
+        border_style="blue",
+        padding=(1, 4),
+    ))
+    console.print()
+
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="IdeaStack — AI multi-agent brainstorming collective"
@@ -65,14 +89,30 @@ def main() -> None:
     parser.add_argument(
         "idea",
         nargs="?",
-        help="Seed idea to brainstorm (prompted if omitted)",
+        help="Seed idea to brainstorm (prompted if omitted; ignored with --serve)",
     )
     parser.add_argument(
         "--save",
         metavar="FILE",
         help="Save the session output to a Markdown file",
     )
+    parser.add_argument(
+        "--serve",
+        action="store_true",
+        help="Launch the web UI instead of the CLI",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        metavar="PORT",
+        help="Port for the web server (default: 8000)",
+    )
     args = parser.parse_args()
+
+    if args.serve:
+        _serve(args.port)
+        return
 
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:

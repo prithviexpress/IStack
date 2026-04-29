@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IdeaStack — AI Brainstorming Collective</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #07070f;
+      --surface:   #0d0d1c;
+      --surface2:  #12122a;
+      --border:    #1c1c35;
+      --border2:   #28285a;
+      --text:      #dde0f0;
+      --text-dim:  #7070a0;
+      --text-faint:#34345a;
+      --radius:    10px;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 28px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .logo-mark {
+      font-size: 22px;
+      color: #6366f1;
+      line-height: 1;
+    }
+    .logo-text {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: var(--text);
+    }
+    .logo-sep { color: var(--text-faint); margin: 0 4px; }
+    .logo-sub {
+      font-size: 13px;
+      color: var(--text-dim);
+      font-weight: 400;
+    }
+    .header-idea {
+      margin-left: auto;
+      font-size: 13px;
+      color: var(--text-dim);
+      font-style: italic;
+      max-width: 400px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: none;
+    }
+    .header-idea.visible { display: block; }
+
+    /* ── Input section ── */
+    #input-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 28px 40px;
+      flex-shrink: 0;
+      transition: padding 0.3s ease;
+    }
+    #input-section.compact { padding: 20px 28px; }
+
+    .input-label {
+      font-size: 28px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 10px;
+      letter-spacing: -0.5px;
+    }
+    .input-sublabel {
+      font-size: 15px;
+      color: var(--text-dim);
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    #input-section.compact .input-label,
+    #input-section.compact .input-sublabel { display: none; }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      max-width: 720px;
+    }
+    #idea-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 15px;
+      padding: 13px 16px;
+      outline: none;
+      font-family: inherit;
+      resize: none;
+      height: 52px;
+      min-height: 52px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      line-height: 1.5;
+    }
+    #idea-input::placeholder { color: var(--text-faint); }
+    #idea-input:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+    }
+    #idea-input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    #run-btn {
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 0 22px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      height: 52px;
+      transition: background 0.2s, transform 0.1s;
+      font-family: inherit;
+    }
+    #run-btn:hover:not(:disabled) { background: #4f46e5; }
+    #run-btn:active:not(:disabled) { transform: scale(0.97); }
+    #run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Agent preview strip (shown before first run) ── */
+    #agent-strip {
+      display: flex;
+      gap: 10px;
+      margin-top: 28px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 720px;
+    }
+    #input-section.compact #agent-strip { display: none; }
+    .strip-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      font-size: 13px;
+    }
+    .strip-card .sc-emoji { font-size: 16px; }
+    .strip-card .sc-name { font-weight: 600; }
+    .strip-card .sc-role { color: var(--text-dim); font-size: 12px; }
+
+    /* ── Workspace ── */
+    #workspace {
+      display: none;
+      flex: 1;
+      min-height: 0;
+    }
+    #workspace.visible {
+      display: grid;
+      grid-template-columns: 230px 1fr;
+    }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+      overflow-y: auto;
+      padding: 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .sidebar-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      padding: 4px 8px 8px;
+    }
+
+    .agent-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+      border: 1px solid transparent;
+      position: relative;
+    }
+    .agent-card:hover { background: var(--surface2); }
+    .agent-card.active {
+      background: var(--surface2);
+      border-color: var(--agent-color);
+      box-shadow: 0 0 0 1px var(--agent-color) inset, 0 0 12px -4px var(--agent-color);
+    }
+    .agent-card.viewing { background: var(--surface2); }
+    .agent-card.done .ac-emoji { opacity: 1; }
+
+    .ac-emoji { font-size: 20px; flex-shrink: 0; }
+    .ac-body { flex: 1; min-width: 0; }
+    .ac-name {
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ac-role {
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ac-status {
+      font-size: 14px;
+      flex-shrink: 0;
+      width: 18px;
+      text-align: center;
+    }
+    .agent-card.done .ac-status { color: var(--agent-color); }
+    .agent-card.active .ac-status { color: var(--agent-color); }
+
+    /* pulsing dot for active agent */
+    @keyframes pulse-ring {
+      0%   { transform: scale(0.8); opacity: 0.9; }
+      70%  { transform: scale(1.4); opacity: 0; }
+      100% { transform: scale(0.8); opacity: 0; }
+    }
+    .pulse-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--agent-color, #6366f1);
+      position: relative;
+    }
+    .pulse-dot::before {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      background: var(--agent-color, #6366f1);
+      animation: pulse-ring 1.4s ease-out infinite;
+    }
+
+    .ac-duration {
+      font-size: 10px;
+      color: var(--text-faint);
+      margin-top: 2px;
+    }
+
+    /* ── Content panel ── */
+    #content {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    #agent-header {
+      padding: 18px 28px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      background: var(--surface);
+    }
+    .ah-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .ah-emoji { font-size: 26px; }
+    .ah-name {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .ah-role {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+    .ah-accent-bar {
+      height: 3px;
+      border-radius: 2px;
+      margin-top: 12px;
+      width: 48px;
+      background: var(--agent-color, #6366f1);
+    }
+
+    #output-wrap {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px;
+    }
+
+    /* Raw streaming area */
+    #output-raw {
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 13.5px;
+      line-height: 1.75;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--text);
+    }
+    #output-raw.hidden { display: none; }
+
+    /* Rendered Markdown area */
+    #output-md { display: none; }
+    #output-md.visible { display: block; }
+
+    /* Markdown styles */
+    #output-md h1, #output-md h2, #output-md h3 {
+      margin: 1.4em 0 0.5em;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      line-height: 1.3;
+    }
+    #output-md h1 { font-size: 22px; color: var(--agent-heading, var(--text)); }
+    #output-md h2 {
+      font-size: 17px;
+      color: var(--agent-heading, var(--text));
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    #output-md h3 { font-size: 15px; color: var(--text); }
+    #output-md p { margin: 0.7em 0; line-height: 1.75; font-size: 14.5px; }
+    #output-md ul, #output-md ol { padding-left: 20px; margin: 0.6em 0; }
+    #output-md li { margin: 0.3em 0; line-height: 1.65; font-size: 14.5px; }
+    #output-md strong { font-weight: 700; color: #f0f0ff; }
+    #output-md em { font-style: italic; color: #c0c0e0; }
+    #output-md code {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 12.5px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    #output-md pre {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      margin: 1em 0;
+    }
+    #output-md pre code { background: none; border: none; padding: 0; font-size: 13px; }
+    #output-md blockquote {
+      border-left: 3px solid var(--border2);
+      padding-left: 14px;
+      color: var(--text-dim);
+      margin: 0.8em 0;
+    }
+    #output-md table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 1em 0;
+      font-size: 14px;
+    }
+    #output-md th {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 600;
+    }
+    #output-md td {
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+    }
+    #output-md tr:hover td { background: var(--surface2); }
+    #output-md hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 1.5em 0;
+    }
+
+    /* Blinking cursor */
+    @keyframes blink { 0%,100% { opacity:1; } 50% { opacity: 0; } }
+    .cursor {
+      display: inline-block;
+      width: 9px; height: 1.1em;
+      background: var(--agent-color, #6366f1);
+      border-radius: 2px;
+      vertical-align: text-bottom;
+      animation: blink 1s step-end infinite;
+      margin-left: 2px;
+    }
+
+    /* Empty/placeholder state */
+    #placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-faint);
+      font-size: 14px;
+      gap: 10px;
+    }
+    #placeholder .ph-icon { font-size: 40px; opacity: 0.4; }
+
+    /* ── Status bar ── */
+    #status-bar {
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      padding: 10px 28px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    #progress-dots {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+    .pdot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--text-faint);
+      transition: background 0.3s, transform 0.3s;
+    }
+    .pdot.done { background: #22c55e; }
+    .pdot.active { transform: scale(1.4); }
+    #status-text {
+      font-size: 13px;
+      color: var(--text-dim);
+      flex: 1;
+    }
+    #export-btn {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border2);
+      border-radius: 7px;
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      display: none;
+      transition: background 0.2s;
+    }
+    #export-btn:hover { background: var(--border); }
+    #export-btn.visible { display: flex; align-items: center; gap: 6px; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #404070; }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <span class="logo-mark">◆</span>
+  <span class="logo-text">IdeaStack</span>
+  <span class="logo-sep">·</span>
+  <span class="logo-sub">AI Brainstorming Collective</span>
+  <span class="header-idea" id="header-idea"></span>
+</header>
+
+<!-- Input -->
+<div id="input-section">
+  <div class="input-label">What's your idea?</div>
+  <div class="input-sublabel">Six AI personas will stress-test, reimagine, and synthesize your concept into a Blue Ocean brief.</div>
+  <div class="input-row">
+    <textarea
+      id="idea-input"
+      placeholder="Describe your seed idea — the more specific, the sharper the analysis…"
+      rows="1"
+      onkeydown="handleKey(event)"
+    ></textarea>
+    <button id="run-btn" onclick="startBrainstorm()">Brainstorm ▶</button>
+  </div>
+  <div id="agent-strip"></div>
+</div>
+
+<!-- Workspace -->
+<div id="workspace">
+  <div id="sidebar">
+    <div class="sidebar-label">Panel</div>
+  </div>
+  <div id="content">
+    <div id="agent-header" style="display:none"></div>
+    <div id="output-wrap">
+      <div id="placeholder">
+        <span class="ph-icon">🧠</span>
+        <span>Select an agent from the panel to read their analysis</span>
+      </div>
+      <div id="output-raw" class="hidden"></div>
+      <div id="output-md"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Status bar -->
+<div id="status-bar" style="display:none">
+  <div id="progress-dots"></div>
+  <span id="status-text">Starting…</span>
+  <button id="export-btn" onclick="exportMarkdown()">↓ Export Markdown</button>
+</div>
+
+<script>
+  // Mirror of Python AGENTS list (name/emoji/color/role only — prompts live server-side)
+  const AGENTS = [
+    { name: "The Maverick",       emoji: "🚀", color: "#d946ef", role: "Unconstrained Imagination"    },
+    { name: "The Contrarian",     emoji: "⚔️",  color: "#ef4444", role: "Adversarial Stress-Tester"   },
+    { name: "The Alchemist",      emoji: "⚗️",  color: "#f59e0b", role: "First-Principles Reconstructor" },
+    { name: "The Oracle",         emoji: "🔮", color: "#06b6d4", role: "Convergent-Trends Analyst"    },
+    { name: "The Street Fighter", emoji: "🥊", color: "#22c55e", role: "Ruthless Pragmatist"          },
+    { name: "The Navigator",      emoji: "🧭", color: "#3b82f6", role: "Blue Ocean Synthesizer"       },
+  ];
+
+  // Session state
+  let state = {
+    seedIdea: "",
+    agentBuffers: {},   // index → raw text accumulated
+    agentDone: {},      // index → true when complete
+    agentDuration: {},  // index → seconds
+    currentAgent: -1,   // index currently streaming
+    viewingAgent: -1,   // index shown in content panel
+    running: false,
+    complete: false,
+  };
+
+  // ── Init agent strip on landing page ──
+  function initStrip() {
+    const strip = document.getElementById("agent-strip");
+    AGENTS.forEach(a => {
+      const el = document.createElement("div");
+      el.className = "strip-card";
+      el.innerHTML = `<span class="sc-emoji">${a.emoji}</span><span class="sc-name" style="color:${a.color}">${a.name}</span><span class="sc-role"> · ${a.role}</span>`;
+      strip.appendChild(el);
+    });
+  }
+
+  // ── Build sidebar agent cards ──
+  function initSidebar() {
+    const sidebar = document.getElementById("sidebar");
+    sidebar.innerHTML = '<div class="sidebar-label">Panel</div>';
+    AGENTS.forEach((a, i) => {
+      const card = document.createElement("div");
+      card.className = "agent-card";
+      card.id = `card-${i}`;
+      card.style.setProperty("--agent-color", a.color);
+      card.innerHTML = `
+        <div class="ac-emoji">${a.emoji}</div>
+        <div class="ac-body">
+          <div class="ac-name">${a.name}</div>
+          <div class="ac-role">${a.role}</div>
+          <div class="ac-duration" id="dur-${i}"></div>
+        </div>
+        <div class="ac-status" id="status-${i}">○</div>
+      `;
+      card.addEventListener("click", () => viewAgent(i));
+      sidebar.appendChild(card);
+    });
+  }
+
+  // ── Build progress dots ──
+  function initDots() {
+    const wrap = document.getElementById("progress-dots");
+    wrap.innerHTML = "";
+    AGENTS.forEach((_, i) => {
+      const d = document.createElement("div");
+      d.className = "pdot";
+      d.id = `dot-${i}`;
+      wrap.appendChild(d);
+    });
+  }
+
+  // ── Show agent in content panel ──
+  function viewAgent(index) {
+    if (state.agentBuffers[index] === undefined && !state.running) return;
+
+    state.viewingAgent = index;
+    const agent = AGENTS[index];
+
+    // Update sidebar "viewing" highlight
+    document.querySelectorAll(".agent-card").forEach((c, i) => {
+      c.classList.toggle("viewing", i === index && i !== state.currentAgent);
+    });
+
+    // Agent header
+    const hdr = document.getElementById("agent-header");
+    hdr.style.display = "block";
+    hdr.style.setProperty("--agent-color", agent.color);
+    hdr.innerHTML = `
+      <div class="ah-top">
+        <span class="ah-emoji">${agent.emoji}</span>
+        <div>
+          <div class="ah-name" style="color:${agent.color}">${agent.name}</div>
+          <div class="ah-role">${agent.role}</div>
+        </div>
+      </div>
+      <div class="ah-accent-bar" style="background:${agent.color}"></div>
+    `;
+
+    // Hide placeholder
+    document.getElementById("placeholder").style.display = "none";
+
+    const rawEl  = document.getElementById("output-raw");
+    const mdEl   = document.getElementById("output-md");
+    mdEl.style.setProperty("--agent-heading", agent.color);
+
+    if (state.agentDone[index]) {
+      // Render Markdown
+      rawEl.classList.add("hidden");
+      mdEl.classList.add("visible");
+      mdEl.innerHTML = marked.parse(state.agentBuffers[index] || "");
+      mdEl.style.display = "block";
+    } else {
+      // Show raw streaming view
+      rawEl.classList.remove("hidden");
+      mdEl.classList.remove("visible");
+      mdEl.style.display = "none";
+      rawEl.style.setProperty("--agent-color", agent.color);
+      rawEl.innerHTML = escapeHtml(state.agentBuffers[index] || "");
+      if (index === state.currentAgent) {
+        rawEl.innerHTML += '<span class="cursor" style="background:' + agent.color + '"></span>';
+      }
+      scrollToBottom();
+    }
+  }
+
+  function scrollToBottom() {
+    const wrap = document.getElementById("output-wrap");
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  // ── SSE event handlers ──
+  function onAgentStart(data) {
+    const { index, name, color, role } = data;
+    state.currentAgent = index;
+    state.agentBuffers[index] = "";
+    state.viewingAgent = index;
+
+    // Sidebar card → active
+    document.querySelectorAll(".agent-card").forEach((c, i) => {
+      c.classList.remove("active", "viewing");
+      if (i === index) c.classList.add("active");
+    });
+
+    // Status icon → pulsing dot
+    const statusEl = document.getElementById(`status-${index}`);
+    statusEl.innerHTML = `<span class="pulse-dot" style="--agent-color:${color}"></span>`;
+
+    // Progress dot → active
+    const dot = document.getElementById(`dot-${index}`);
+    if (dot) dot.classList.add("active");
+
+    // Status bar text
+    document.getElementById("status-text").textContent =
+      `${data.emoji} ${name} — ${role}  ·  Agent ${index + 1} of ${data.total}`;
+
+    // Show content panel for this agent
+    viewAgent(index);
+  }
+
+  function onToken(data) {
+    const { index, text } = data;
+    state.agentBuffers[index] = (state.agentBuffers[index] || "") + text;
+
+    // Only update DOM if we're viewing this agent
+    if (state.viewingAgent === index) {
+      const rawEl = document.getElementById("output-raw");
+      const agent = AGENTS[index];
+      rawEl.innerHTML = escapeHtml(state.agentBuffers[index])
+        + `<span class="cursor" style="background:${agent.color}"></span>`;
+      scrollToBottom();
+    }
+  }
+
+  function onAgentEnd(data) {
+    const { index, duration_s } = data;
+    state.agentDone[index] = true;
+    state.agentDuration[index] = duration_s;
+
+    // Sidebar: mark done
+    const card = document.getElementById(`card-${index}`);
+    card.classList.remove("active");
+    card.classList.add("done");
+
+    const statusEl = document.getElementById(`status-${index}`);
+    statusEl.innerHTML = "✓";
+
+    const durEl = document.getElementById(`dur-${index}`);
+    durEl.textContent = `${duration_s}s`;
+
+    // Progress dot → done
+    const dot = document.getElementById(`dot-${index}`);
+    if (dot) { dot.classList.remove("active"); dot.classList.add("done"); }
+
+    // If we're viewing this agent, upgrade raw text → Markdown
+    if (state.viewingAgent === index) {
+      const rawEl = document.getElementById("output-raw");
+      const mdEl  = document.getElementById("output-md");
+      rawEl.classList.add("hidden");
+      mdEl.classList.add("visible");
+      mdEl.style.display = "block";
+      mdEl.style.setProperty("--agent-heading", AGENTS[index].color);
+      mdEl.innerHTML = marked.parse(state.agentBuffers[index] || "");
+    }
+  }
+
+  function onComplete(data) {
+    state.running = false;
+    state.complete = true;
+    state.currentAgent = -1;
+
+    document.getElementById("status-text").textContent =
+      `✓ All ${data.total} agents complete`;
+    document.getElementById("export-btn").classList.add("visible");
+
+    // Re-enable input
+    document.getElementById("idea-input").disabled = false;
+    document.getElementById("run-btn").disabled = false;
+    document.getElementById("run-btn").textContent = "New Brainstorm ▶";
+  }
+
+  function onError(data) {
+    const msg = `Error in agent ${data.index + 1}: ${data.message}`;
+    document.getElementById("status-text").textContent = "⚠ " + msg;
+    state.running = false;
+    document.getElementById("idea-input").disabled = false;
+    document.getElementById("run-btn").disabled = false;
+    document.getElementById("run-btn").textContent = "Retry ▶";
+  }
+
+  // ── Parse SSE stream from fetch response ──
+  async function readSSE(response) {
+    const reader  = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() ?? "";  // keep incomplete tail
+
+      for (const chunk of parts) {
+        let event = "";
+        let data  = "";
+        for (const line of chunk.split("\n")) {
+          if (line.startsWith("event: ")) event = line.slice(7).trim();
+          else if (line.startsWith("data: ")) data = line.slice(6).trim();
+        }
+        if (!event || !data) continue;
+        try {
+          const parsed = JSON.parse(data);
+          if      (event === "agent_start") onAgentStart(parsed);
+          else if (event === "token")       onToken(parsed);
+          else if (event === "agent_end")   onAgentEnd(parsed);
+          else if (event === "complete")    onComplete(parsed);
+          else if (event === "error")       onError(parsed);
+        } catch { /* malformed JSON, skip */ }
+      }
+    }
+  }
+
+  // ── Main entry point ──
+  async function startBrainstorm() {
+    const idea = document.getElementById("idea-input").value.trim();
+    if (!idea || state.running) return;
+
+    // Reset state
+    state = {
+      seedIdea: idea,
+      agentBuffers: {},
+      agentDone: {},
+      agentDuration: {},
+      currentAgent: -1,
+      viewingAgent: -1,
+      running: true,
+      complete: false,
+    };
+
+    // UI transitions
+    document.getElementById("idea-input").disabled = true;
+    document.getElementById("run-btn").disabled = true;
+    document.getElementById("run-btn").textContent = "Running…";
+    document.getElementById("input-section").classList.add("compact");
+    document.getElementById("workspace").classList.add("visible");
+    document.getElementById("status-bar").style.display = "flex";
+    document.getElementById("export-btn").classList.remove("visible");
+    document.getElementById("placeholder").style.display = "flex";
+    document.getElementById("agent-header").style.display = "none";
+    document.getElementById("output-raw").classList.add("hidden");
+    document.getElementById("output-md").classList.remove("visible");
+    document.getElementById("output-md").style.display = "none";
+
+    // Show idea in header
+    const headerIdea = document.getElementById("header-idea");
+    headerIdea.textContent = `"${idea}"`;
+    headerIdea.classList.add("visible");
+
+    initSidebar();
+    initDots();
+
+    try {
+      const response = await fetch("/brainstorm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seed_idea: idea }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ detail: "Unknown error" }));
+        onError({ index: 0, message: err.detail || response.statusText });
+        return;
+      }
+
+      await readSSE(response);
+    } catch (err) {
+      onError({ index: 0, message: err.message });
+    }
+  }
+
+  // ── Export to Markdown ──
+  function exportMarkdown() {
+    const ts = new Date().toISOString().slice(0, 16).replace("T", " ");
+    const lines = [
+      `# IdeaStack Session — ${ts}`,
+      "",
+      `## Seed Idea`,
+      "",
+      state.seedIdea,
+      "",
+      "---",
+      "",
+    ];
+    AGENTS.forEach((a, i) => {
+      const content = state.agentBuffers[i];
+      if (!content) return;
+      const dur = state.agentDuration[i] ? ` · ${state.agentDuration[i]}s` : "";
+      lines.push(`## ${a.emoji} ${a.name} — ${a.role}${dur}`);
+      lines.push("");
+      lines.push(content);
+      lines.push("");
+      lines.push("---");
+      lines.push("");
+    });
+
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `ideastack-${Date.now()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ── Enter key in textarea ──
+  function handleKey(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      startBrainstorm();
+    }
+  }
+
+  // ── Init on load ──
+  initStrip();
+</script>
+</body>
+</html>
