@@ -757,7 +757,7 @@
 <!-- Input -->
 <div id="input-section">
   <div class="input-label">What's your idea?</div>
-  <div class="input-sublabel">Six AI personas will stress-test, reimagine, and synthesize your concept into a Blue Ocean brief.</div>
+  <div class="input-sublabel">Seven AI personas stress-test, reimagine, and synthesize your concept — ending with a full business plan pitch.</div>
   <div class="input-row">
     <textarea
       id="idea-input"
@@ -822,7 +822,7 @@
   <div id="progress-dots"></div>
   <span id="status-text">Starting…</span>
   <button id="export-btn" onclick="exportMarkdown()">↓ Export Markdown</button>
-  <button id="export-plan-btn" onclick="exportClaudeCodePlan()">↓ Export Claude Code Plan</button>
+  <button id="export-plan-btn" onclick="exportClaudeCodePlan()">↓ Export Business Plan</button>
 </div>
 
 <script>
@@ -845,6 +845,7 @@
     { name: "The Oracle",         emoji: "🔮", color: "#111", role: "Convergent-Trends Analyst"       },
     { name: "The Street Fighter", emoji: "🥊", color: "#111", role: "Ruthless Pragmatist"             },
     { name: "The Navigator",      emoji: "🧭", color: "#111", role: "Blue Ocean Synthesizer"          },
+    { name: "The Pitcher",        emoji: "📋", color: "#111", role: "Business Plan & Pitch"           },
   ];
 
   // Session state
@@ -1356,7 +1357,7 @@
     const ctx = state.lastContext || {};
 
     const lines = [
-      `# IdeaStack — Claude Code Execution Plan`,
+      `# IdeaStack — Business Plan & Pitch`,
       ``,
       `> Generated: ${ts}`,
       ``,
@@ -1398,52 +1399,54 @@
       }
     });
 
-    // Extract Navigator sections
-    const navOutput = state.agentBuffers[5] || "";
-    const extractSec = (heading) =>
-      navOutput.match(new RegExp(`##\\s*${heading}\\s*\\n([\\s\\S]+?)(?=\\n##|$)`))?.[1]?.trim() || "";
+    const extractFrom = (buf, heading) =>
+      buf.match(new RegExp(`##\\s*${heading}\\s*\\n([\\s\\S]+?)(?=\\n##|$)`))?.[1]?.trim() || "";
 
-    const callToAction = extractSec("CALL TO ACTION");
-    const firstMove    = extractSec("FIRST MOVE");
-    const beachhead    = extractSec("THE BEACHHEAD");
-    const practPath    = extractSec("THE PRACTICAL PATH");
-    const coreInsight  = extractSec("THE CORE INSIGHT");
+    const pitcherOutput = state.agentBuffers[6] || "";
+    const navOutput     = state.agentBuffers[5] || "";
 
-    // ── CALL TO ACTION — featured at top of document ──
-    if (callToAction || firstMove || beachhead) {
-      // Insert CTA right after the seed idea / context block (before the panel analysis)
+    // ── The Pitcher's full output leads the document ──
+    if (pitcherOutput) {
       const insertAt = lines.indexOf("## Panel Analysis");
-      const ctaLines = [
-        `## ◆ Call to Action`,
+      lines.splice(insertAt, 0,
+        `## Business Plan & Pitch`,
         ``,
-      ];
-      if (coreInsight) ctaLines.push(`> ${coreInsight.replace(/\n/g, " ")}`, ``);
-      if (callToAction) {
-        ctaLines.push(callToAction, ``);
-      } else {
-        if (beachhead) ctaLines.push(`**Beachhead:**`, ``, beachhead, ``);
-        if (firstMove) ctaLines.push(`**First Move:**`, ``, firstMove, ``);
-        if (practPath) ctaLines.push(`**Practical Path:**`, ``, practPath, ``);
+        pitcherOutput,
+        ``,
+        `---`,
+        ``,
+      );
+    } else {
+      // Fallback: assemble from Navigator sections if Pitcher hasn't run yet
+      const callToAction = extractFrom(navOutput, "CALL TO ACTION");
+      const coreInsight  = extractFrom(navOutput, "THE CORE INSIGHT");
+      const beachhead    = extractFrom(navOutput, "THE BEACHHEAD");
+      const practPath    = extractFrom(navOutput, "THE PRACTICAL PATH");
+      if (callToAction || beachhead) {
+        const insertAt = lines.indexOf("## Panel Analysis");
+        const ctaLines = [`## ◆ Summary & Action Plan`, ``];
+        if (coreInsight) ctaLines.push(`> ${coreInsight.replace(/\n/g, " ")}`, ``);
+        if (callToAction) ctaLines.push(callToAction, ``);
+        else {
+          if (beachhead) ctaLines.push(`**Beachhead:**`, ``, beachhead, ``);
+          if (practPath) ctaLines.push(`**Practical Path:**`, ``, practPath, ``);
+        }
+        ctaLines.push(`---`, ``);
+        lines.splice(insertAt, 0, ...ctaLines);
       }
-      ctaLines.push(`---`, ``);
-      lines.splice(insertAt, 0, ...ctaLines);
     }
 
-    // ── Task scaffold for Claude Code ──
+    // ── Claude Code implementation scaffold ──
     lines.push(
-      `## Task for Claude Code`,
-      ``,
-      `This is a complete IdeaStack brainstorming session. Use the Navigator's Blue Ocean Brief and the Call to Action above as the product vision and execution plan.`,
+      `## Implementation Instructions for Claude Code`,
       ``,
       `**Seed idea:** ${state.seedIdea}`,
       ``,
-      `**Instructions for Claude Code:**`,
-      `1. Read the Call to Action section — it is the actionable summary of everything.`,
-      `2. Read the Navigator's full Blue Ocean Brief for strategic context.`,
-      `3. Use the Street Fighter's MVP as the scope boundary for what to build first.`,
-      `4. Reference the Contrarian's failure modes as edge cases to guard against.`,
-      `5. Implement the "This week" actions from the Call to Action as the immediate deliverable.`,
-      `6. Phase delivery against the monthly milestones.`,
+      `1. The Pitcher's Business Plan above is the primary reference — it contains the full plan.`,
+      `2. Use the Street Fighter's MVP as the scope boundary for what to build first.`,
+      `3. Use the Contrarian's failure modes as the edge-case and risk checklist.`,
+      `4. Phase delivery against the Traction Plan milestones.`,
+      `5. Start with the "Days 1–30" actions as the immediate deliverable.`,
       ``,
       `---`,
       ``,
@@ -1465,14 +1468,22 @@
     const lines = [
       `# IdeaStack Session — ${ts}`,
       "",
-      `## Seed Idea`,
-      "",
-      state.seedIdea,
+      `**Seed Idea:** ${state.seedIdea}`,
       "",
       "---",
       "",
     ];
+
+    // Pitcher first if available — it's the deliverable
+    const pitcherOutput = state.agentBuffers[6];
+    if (pitcherOutput) {
+      lines.push(`## 📋 Business Plan & Pitch`, "", pitcherOutput, "", "---", "");
+      lines.push(`## Panel Analysis`, "", "");
+    }
+
+    // Then the remaining agents (skip Pitcher — already shown above)
     AGENTS.forEach((a, i) => {
+      if (i === 6) return;   // Pitcher already at top
       const content = state.agentBuffers[i];
       if (!content) return;
       const dur = state.agentDuration[i] ? ` · ${state.agentDuration[i]}s` : "";
