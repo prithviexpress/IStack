@@ -29,6 +29,8 @@
       display: flex;
       flex-direction: column;
       min-height: 100vh;
+      min-height: 100svh;
+      overflow-x: hidden;
     }
 
     /* ── Header ── */
@@ -403,6 +405,14 @@
       margin: 1.8em 0;
     }
 
+    /* Scrollable table wrapper (added by renderMarkdown()) */
+    .table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      margin: 1em 0;
+    }
+    .table-wrap table { margin: 0; }
+
     /* Blinking cursor */
     @keyframes blink { 0%,100% { opacity:1; } 50% { opacity: 0; } }
     .cursor {
@@ -606,7 +616,7 @@
       #output-md td { padding: 6px 8px; }
 
       /* Status bar */
-      #status-bar { padding: 8px 16px; gap: 8px; }
+      #status-bar { padding: 8px 16px max(8px, env(safe-area-inset-bottom)) 16px; gap: 8px; }
       #status-text { font-size: 12px; }
       #export-btn { padding: 6px 10px; font-size: 12px; }
 
@@ -690,6 +700,17 @@
 </div>
 
 <script>
+  // Render markdown and wrap tables for horizontal scrollability on mobile
+  function renderMarkdown(el, content) {
+    el.innerHTML = marked.parse(content || "");
+    el.querySelectorAll('table').forEach(t => {
+      const wrap = document.createElement('div');
+      wrap.className = 'table-wrap';
+      t.parentNode.insertBefore(wrap, t);
+      wrap.appendChild(t);
+    });
+  }
+
   // Mirror of Python AGENTS list (name/emoji/color/role only — prompts live server-side)
   const AGENTS = [
     { name: "The Maverick",       emoji: "🚀", color: "#111", role: "Unconstrained Imagination"       },
@@ -796,7 +817,7 @@
       // Render Markdown
       rawEl.classList.add("hidden");
       mdEl.classList.add("visible");
-      mdEl.innerHTML = marked.parse(state.agentBuffers[index] || "");
+      renderMarkdown(mdEl, state.agentBuffers[index]);
       mdEl.style.display = "block";
     } else {
       // Show raw streaming view
@@ -892,7 +913,7 @@
       mdEl.classList.add("visible");
       mdEl.style.display = "block";
       mdEl.style.setProperty("--agent-heading", AGENTS[index].color);
-      mdEl.innerHTML = marked.parse(state.agentBuffers[index] || "");
+      renderMarkdown(mdEl, state.agentBuffers[index]);
     }
   }
 
