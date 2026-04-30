@@ -413,6 +413,118 @@
     }
     .table-wrap table { margin: 0; }
 
+    /* ── Re-run button (agent header) ── */
+    .rerun-btn {
+      margin-left: auto;
+      background: transparent;
+      border: 1px solid var(--border2);
+      color: var(--text-dim);
+      border-radius: 6px;
+      padding: 5px 11px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      flex-shrink: 0;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .rerun-btn:hover { border-color: var(--text); color: var(--text); }
+    .rerun-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── Discuss zone ── */
+    #discuss-zone {
+      margin-top: 36px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+    .discuss-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 16px;
+    }
+    #discuss-thread {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .discuss-msg {
+      max-width: 88%;
+      border-radius: var(--radius);
+      padding: 11px 15px;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .discuss-msg.user {
+      align-self: flex-end;
+      background: var(--text);
+      color: #fff;
+      border-bottom-right-radius: 2px;
+    }
+    .discuss-msg.assistant {
+      align-self: flex-start;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 2px;
+      color: var(--text);
+    }
+    .discuss-msg.assistant p { margin: 0.5em 0; }
+    .discuss-msg.assistant p:first-child { margin-top: 0; }
+    .discuss-msg.assistant p:last-child { margin-bottom: 0; }
+    .discuss-msg.assistant ul,
+    .discuss-msg.assistant ol { padding-left: 18px; margin: 0.4em 0; }
+    .discuss-msg.assistant li { margin: 0.2em 0; }
+    .discuss-msg.assistant strong { font-weight: 700; }
+    .discuss-msg.assistant code {
+      background: var(--border);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 12px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    .discuss-input-row {
+      display: flex;
+      gap: 8px;
+    }
+    #discuss-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 14px;
+      padding: 10px 14px;
+      outline: none;
+      font-family: inherit;
+      resize: none;
+      height: 44px;
+      min-height: 44px;
+      transition: border-color 0.2s;
+      line-height: 1.4;
+    }
+    #discuss-input:focus { border-color: var(--text); box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }
+    #discuss-input::placeholder { color: var(--text-faint); }
+    #discuss-input:disabled { opacity: 0.4; cursor: not-allowed; }
+    #discuss-send-btn {
+      background: var(--text);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 0 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      height: 44px;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+    #discuss-send-btn:hover:not(:disabled) { background: #333; }
+    #discuss-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
     /* Blinking cursor */
     @keyframes blink { 0%,100% { opacity:1; } 50% { opacity: 0; } }
     .cursor {
@@ -465,7 +577,7 @@
       color: var(--text-dim);
       flex: 1;
     }
-    #export-btn {
+    #export-btn, #export-plan-btn {
       background: var(--bg);
       color: var(--text);
       border: 1px solid var(--border2);
@@ -478,8 +590,8 @@
       display: none;
       transition: background 0.15s;
     }
-    #export-btn:hover { background: var(--surface2); }
-    #export-btn.visible { display: flex; align-items: center; gap: 6px; }
+    #export-btn:hover, #export-plan-btn:hover { background: var(--surface2); }
+    #export-btn.visible, #export-plan-btn.visible { display: flex; align-items: center; gap: 6px; }
 
     /* ── Context form ── */
     .ctx-toggle {
@@ -623,6 +735,11 @@
       /* Placeholder */
       #placeholder { font-size: 13px; padding: 0 16px; text-align: center; }
       #placeholder .ph-icon { font-size: 28px; }
+
+      /* Discuss zone */
+      #discuss-zone { margin-top: 24px; padding-top: 18px; }
+      .discuss-msg { max-width: 95%; font-size: 13px; }
+      #discuss-input { font-size: 16px; } /* prevent iOS zoom */
     }
   </style>
 </head>
@@ -688,6 +805,14 @@
       </div>
       <div id="output-raw" class="hidden"></div>
       <div id="output-md"></div>
+      <div id="discuss-zone" style="display:none">
+        <div class="discuss-label">Follow-up</div>
+        <div id="discuss-thread"></div>
+        <div class="discuss-input-row">
+          <textarea id="discuss-input" placeholder="Ask a follow-up…" onkeydown="handleDiscussKey(event)"></textarea>
+          <button id="discuss-send-btn" onclick="sendDiscussion()">Ask ↵</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -697,6 +822,7 @@
   <div id="progress-dots"></div>
   <span id="status-text">Starting…</span>
   <button id="export-btn" onclick="exportMarkdown()">↓ Export Markdown</button>
+  <button id="export-plan-btn" onclick="exportClaudeCodePlan()">↓ Export Claude Code Plan</button>
 </div>
 
 <script>
@@ -724,13 +850,16 @@
   // Session state
   let state = {
     seedIdea: "",
-    agentBuffers: {},   // index → raw text accumulated
-    agentDone: {},      // index → true when complete
-    agentDuration: {},  // index → seconds
-    currentAgent: -1,   // index currently streaming
-    viewingAgent: -1,   // index shown in content panel
+    agentBuffers: {},       // index → raw text accumulated
+    agentDone: {},          // index → true when complete
+    agentDuration: {},      // index → seconds
+    currentAgent: -1,       // index currently streaming
+    viewingAgent: -1,       // index shown in content panel
     running: false,
     complete: false,
+    lastContext: null,       // context object saved at brainstorm start
+    agentDiscussions: {},    // index → [{role, text, streaming?}]
+    discussStreaming: false, // true while a discuss SSE is in flight
   };
 
   // ── Init agent strip on landing page ──
@@ -785,16 +914,16 @@
 
     state.viewingAgent = index;
     const agent = AGENTS[index];
+    const done  = state.agentDone[index];
 
     // Update sidebar "viewing" highlight
     document.querySelectorAll(".agent-card").forEach((c, i) => {
       c.classList.toggle("viewing", i === index && i !== state.currentAgent);
     });
 
-    // Agent header
+    // Agent header — include re-run button once the agent is done
     const hdr = document.getElementById("agent-header");
     hdr.style.display = "block";
-    hdr.style.setProperty("--agent-color", agent.color);
     hdr.innerHTML = `
       <div class="ah-top">
         <span class="ah-emoji">${agent.emoji}</span>
@@ -802,6 +931,7 @@
           <div class="ah-name" style="color:${agent.color}">${agent.name}</div>
           <div class="ah-role">${agent.role}</div>
         </div>
+        ${done ? `<button class="rerun-btn" onclick="rerunAgent(${index})" ${state.running ? 'disabled' : ''}>↺ Re-run</button>` : ''}
       </div>
       <div class="ah-accent-bar" style="background:${agent.color}"></div>
     `;
@@ -811,24 +941,27 @@
 
     const rawEl  = document.getElementById("output-raw");
     const mdEl   = document.getElementById("output-md");
-    mdEl.style.setProperty("--agent-heading", agent.color);
+    const discEl = document.getElementById("discuss-zone");
 
-    if (state.agentDone[index]) {
+    if (done) {
       // Render Markdown
       rawEl.classList.add("hidden");
       mdEl.classList.add("visible");
       renderMarkdown(mdEl, state.agentBuffers[index]);
       mdEl.style.display = "block";
+      // Show discuss zone for this agent
+      discEl.style.display = "block";
+      renderDiscussZone(index);
     } else {
       // Show raw streaming view
       rawEl.classList.remove("hidden");
       mdEl.classList.remove("visible");
       mdEl.style.display = "none";
-      rawEl.style.setProperty("--agent-color", agent.color);
       rawEl.innerHTML = escapeHtml(state.agentBuffers[index] || "");
       if (index === state.currentAgent) {
-        rawEl.innerHTML += '<span class="cursor" style="background:' + agent.color + '"></span>';
+        rawEl.innerHTML += '<span class="cursor"></span>';
       }
+      discEl.style.display = "none";
       scrollToBottom();
     }
   }
@@ -905,16 +1038,8 @@
     const dot = document.getElementById(`dot-${index}`);
     if (dot) { dot.classList.remove("active"); dot.classList.add("done"); }
 
-    // If we're viewing this agent, upgrade raw text → Markdown
-    if (state.viewingAgent === index) {
-      const rawEl = document.getElementById("output-raw");
-      const mdEl  = document.getElementById("output-md");
-      rawEl.classList.add("hidden");
-      mdEl.classList.add("visible");
-      mdEl.style.display = "block";
-      mdEl.style.setProperty("--agent-heading", AGENTS[index].color);
-      renderMarkdown(mdEl, state.agentBuffers[index]);
-    }
+    // If we're viewing this agent, upgrade to rendered view (markdown + discuss zone + re-run btn)
+    if (state.viewingAgent === index) viewAgent(index);
   }
 
   function onComplete(data) {
@@ -925,6 +1050,7 @@
     document.getElementById("status-text").textContent =
       `✓ All ${data.total} agents complete`;
     document.getElementById("export-btn").classList.add("visible");
+    document.getElementById("export-plan-btn").classList.add("visible");
 
     // Re-enable input
     document.getElementById("idea-input").disabled = false;
@@ -981,6 +1107,7 @@
     if (!idea || state.running) return;
 
     // Reset state
+    const savedCtx = getContext();
     state = {
       seedIdea: idea,
       agentBuffers: {},
@@ -990,6 +1117,9 @@
       viewingAgent: -1,
       running: true,
       complete: false,
+      lastContext: savedCtx,
+      agentDiscussions: {},
+      discussStreaming: false,
     };
 
     // UI transitions
@@ -1000,11 +1130,13 @@
     document.getElementById("workspace").classList.add("visible");
     document.getElementById("status-bar").style.display = "flex";
     document.getElementById("export-btn").classList.remove("visible");
+    document.getElementById("export-plan-btn").classList.remove("visible");
     document.getElementById("placeholder").style.display = "flex";
     document.getElementById("agent-header").style.display = "none";
     document.getElementById("output-raw").classList.add("hidden");
     document.getElementById("output-md").classList.remove("visible");
     document.getElementById("output-md").style.display = "none";
+    document.getElementById("discuss-zone").style.display = "none";
 
     // Show idea in header, with optional region tag
     const headerIdea = document.getElementById("header-idea");
@@ -1033,6 +1165,276 @@
     } catch (err) {
       onError({ index: 0, message: err.message });
     }
+  }
+
+  // ── Discuss zone ──
+
+  function renderDiscussZone(agentIndex) {
+    const agent  = AGENTS[agentIndex];
+    const thread = document.getElementById("discuss-thread");
+    const input  = document.getElementById("discuss-input");
+    const sendBtn = document.getElementById("discuss-send-btn");
+
+    input.placeholder = `Ask ${agent.name} a follow-up…`;
+    input.disabled    = state.discussStreaming;
+    sendBtn.disabled  = state.discussStreaming;
+    document.getElementById("discuss-zone").dataset.agentIndex = agentIndex;
+
+    const msgs = state.agentDiscussions[agentIndex] || [];
+    thread.innerHTML = "";
+    msgs.forEach((msg, i) => {
+      const el = document.createElement("div");
+      el.className = `discuss-msg ${msg.role}`;
+      if (msg.role === "assistant") {
+        if (msg.streaming) {
+          el.textContent = msg.text;
+        } else {
+          renderMarkdown(el, msg.text);
+        }
+      } else {
+        el.textContent = msg.text;
+      }
+      thread.appendChild(el);
+    });
+  }
+
+  function buildDiscussThread(agentIndex) {
+    const msgs = state.agentDiscussions[agentIndex] || [];
+    // Exclude the last two: the current question + the streaming placeholder
+    return msgs.slice(0, -2).map(m => ({ role: m.role, text: m.text }));
+  }
+
+  async function sendDiscussion() {
+    const zone       = document.getElementById("discuss-zone");
+    const agentIndex = parseInt(zone.dataset.agentIndex);
+    const input      = document.getElementById("discuss-input");
+    const question   = input.value.trim();
+    if (!question || state.discussStreaming) return;
+
+    input.value = "";
+
+    if (!state.agentDiscussions[agentIndex]) state.agentDiscussions[agentIndex] = [];
+    state.agentDiscussions[agentIndex].push({ role: "user",      text: question });
+    state.agentDiscussions[agentIndex].push({ role: "assistant", text: "", streaming: true });
+    state.discussStreaming = true;
+    renderDiscussZone(agentIndex);
+    scrollToBottom();
+
+    try {
+      const resp = await fetch("/discuss", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agent_index:     agentIndex,
+          seed_idea:       state.seedIdea,
+          context:         state.lastContext,
+          agent_analysis:  state.agentBuffers[agentIndex] || "",
+          thread:          buildDiscussThread(agentIndex),
+          question:        question,
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: "Unknown error" }));
+        throw new Error(err.detail || resp.statusText);
+      }
+      await readDiscussSSE(resp, agentIndex);
+    } catch (err) {
+      const msgs = state.agentDiscussions[agentIndex];
+      msgs[msgs.length - 1] = { role: "assistant", text: `⚠ ${err.message}` };
+      state.discussStreaming = false;
+      renderDiscussZone(agentIndex);
+    }
+  }
+
+  async function readDiscussSSE(response, agentIndex) {
+    const reader  = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() ?? "";
+
+      for (const chunk of parts) {
+        let event = "", data = "";
+        for (const line of chunk.split("\n")) {
+          if (line.startsWith("event: ")) event = line.slice(7).trim();
+          else if (line.startsWith("data: ")) data = line.slice(6).trim();
+        }
+        if (!event || !data) continue;
+        try {
+          const parsed = JSON.parse(data);
+          const msgs   = state.agentDiscussions[agentIndex];
+          const last   = msgs && msgs[msgs.length - 1];
+
+          if (event === "token" && last?.streaming) {
+            last.text += parsed.text;
+            // Efficiently update last bubble while streaming
+            const thread = document.getElementById("discuss-thread");
+            const lastEl = thread.lastElementChild;
+            if (lastEl) lastEl.textContent = last.text;
+            scrollToBottom();
+          } else if (event === "complete") {
+            if (last?.streaming) last.streaming = false;
+            state.discussStreaming = false;
+            renderDiscussZone(agentIndex);
+          } else if (event === "error") {
+            if (last) { last.text = `⚠ ${parsed.message}`; last.streaming = false; }
+            state.discussStreaming = false;
+            renderDiscussZone(agentIndex);
+          }
+        } catch { /* skip malformed */ }
+      }
+    }
+  }
+
+  function handleDiscussKey(e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendDiscussion(); }
+  }
+
+  // ── Re-run a single agent ──
+  async function rerunAgent(index) {
+    if (state.running) return;
+    state.running = true;
+    state.currentAgent = index;
+    state.agentBuffers[index] = "";
+    state.agentDone[index] = false;
+    state.agentDuration[index] = undefined;
+    state.agentDiscussions[index] = [];
+
+    // Sidebar card → active
+    const card = document.getElementById(`card-${index}`);
+    card.classList.remove("done", "viewing");
+    card.classList.add("active");
+    document.getElementById(`status-${index}`).innerHTML = `<span class="pulse-dot"></span>`;
+    document.getElementById(`dur-${index}`).textContent = "";
+    const dot = document.getElementById(`dot-${index}`);
+    if (dot) { dot.classList.remove("done"); dot.classList.add("active"); }
+
+    document.getElementById("export-plan-btn").classList.remove("visible");
+    document.getElementById("status-text").textContent =
+      `${AGENTS[index].emoji} ${AGENTS[index].name} — re-running…`;
+
+    // Switch content panel to streaming view for this agent
+    state.viewingAgent = index;
+    viewAgent(index);
+
+    // Prior completed outputs (skip the agent being re-run)
+    const priorOutputs = AGENTS.map((a, i) => {
+      if (i === index || !state.agentDone[i]) return null;
+      return { name: a.name, emoji: a.emoji, role: a.role, color: a.color, output: state.agentBuffers[i] };
+    }).filter(Boolean);
+
+    try {
+      const resp = await fetch("/run-agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agent_index:   index,
+          seed_idea:     state.seedIdea,
+          context:       state.lastContext,
+          prior_outputs: priorOutputs,
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: "Unknown error" }));
+        onError({ index, message: err.detail || resp.statusText });
+        return;
+      }
+      await readSSE(resp);
+    } catch (err) {
+      onError({ index, message: err.message });
+    }
+  }
+
+  // ── Export Claude Code Plan ──
+  function exportClaudeCodePlan() {
+    const ts  = new Date().toISOString().slice(0, 16).replace("T", " ");
+    const ctx = state.lastContext || {};
+
+    const lines = [
+      `# IdeaStack — Claude Code Execution Plan`,
+      ``,
+      `> Generated: ${ts}`,
+      ``,
+      `---`,
+      ``,
+      `## Seed Idea`,
+      ``,
+      `> ${state.seedIdea}`,
+      ``,
+    ];
+
+    const ctxRows = [
+      ctx.country         && `- **Country / Region:** ${ctx.country}`,
+      ctx.industry        && `- **Industry / Sector:** ${ctx.industry}`,
+      ctx.stage           && `- **Stage:** ${ctx.stage}`,
+      ctx.target_audience && `- **Target Audience:** ${ctx.target_audience}`,
+      ctx.notes           && `- **Notes:** ${ctx.notes}`,
+    ].filter(Boolean);
+    if (ctxRows.length) {
+      lines.push(`## Context`, ``, ...ctxRows, ``);
+    }
+
+    lines.push(`---`, ``, `## Panel Analysis`, ``);
+
+    AGENTS.forEach((a, i) => {
+      const content = state.agentBuffers[i];
+      if (!content) return;
+      const dur = state.agentDuration[i] ? ` *(${state.agentDuration[i]}s)*` : "";
+      lines.push(`### ${a.emoji} ${a.name} — ${a.role}${dur}`, ``, content, ``, `---`, ``);
+
+      const disc = state.agentDiscussions[i];
+      if (disc && disc.length) {
+        lines.push(`#### Follow-up with ${a.name}`, ``);
+        disc.forEach(m => {
+          if (m.role === "user")      lines.push(`**You:** ${m.text}`, ``);
+          else if (!m.streaming)     lines.push(`**${a.name}:**`, ``, m.text, ``);
+        });
+        lines.push(`---`, ``);
+      }
+    });
+
+    // Task scaffold for Claude Code
+    const navOutput  = state.agentBuffers[5] || "";
+    const firstMove  = navOutput.match(/##\s*FIRST MOVE\s*\n([\s\S]+?)(?=\n##|$)/)?.[1]?.trim() || "";
+    const beachhead  = navOutput.match(/##\s*THE BEACHHEAD\s*\n([\s\S]+?)(?=\n##|$)/)?.[1]?.trim() || "";
+    const practPath  = navOutput.match(/##\s*THE PRACTICAL PATH\s*\n([\s\S]+?)(?=\n##|$)/)?.[1]?.trim() || "";
+
+    lines.push(
+      `## Task for Claude Code`,
+      ``,
+      `This is a complete IdeaStack brainstorming session. Use the Navigator's Blue Ocean Brief above as the product vision and the Street Fighter's analysis as the execution constraint.`,
+      ``,
+      `**Seed idea:** ${state.seedIdea}`,
+      ``,
+    );
+    if (firstMove)  lines.push(`**First Move (Navigator):**`, ``, firstMove, ``);
+    if (beachhead)  lines.push(`**Beachhead (Navigator):**`,  ``, beachhead, ``);
+    if (practPath)  lines.push(`**Practical Path:**`,         ``, practPath, ``);
+    lines.push(
+      `**Instructions for Claude Code:**`,
+      `1. Read the Navigator's Blue Ocean Brief — it is the synthesis of all six analyses.`,
+      `2. Use the Street Fighter's MVP as the scope boundary for what to build first.`,
+      `3. Reference the Contrarian's failure modes as edge cases to test against.`,
+      `4. Implement the First Move as the immediate deliverable.`,
+      `5. Follow the Practical Path for phasing (Month 1-3 → 4-9 → 10-18).`,
+      ``,
+      `---`,
+      ``,
+      `*Generated by IdeaStack — AI Brainstorming Collective*`,
+    );
+
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `ideastack-claude-code-plan-${Date.now()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   // ── Export to Markdown ──
