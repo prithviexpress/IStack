@@ -188,8 +188,31 @@ Alchemist, Oracle, Street Fighter.
 | **Raise** | [factors to raise above industry standard] |
 | **Create** | [factors never offered before] |
 
-## FIRST MOVE
-- Single action to take in the next 30 days to test the core thesis\
+## CALL TO ACTION
+
+**The decision:** [1 sentence — what to do and why now, not later]
+
+**This week (days 1–7):**
+1. [Specific action]
+2. [Specific action]
+3. [Specific action]
+
+**Month 1 milestone:**
+- [Concrete deliverable that proves the thesis is worth pursuing]
+
+**Month 3 milestone:**
+- [What exists and what has been validated by real users/customers]
+
+**Month 6 milestone:**
+- [Revenue, users, or traction target — pick one number and commit to it]
+
+**Month 12–18 milestone:**
+- [What a fundable or self-sustaining business looks like at this point]
+
+**To get started you need:**
+- Budget: [minimum amount and what it covers]
+- Team: [roles required before anything ships]
+- First dependency: [the single thing to unlock or decide before week 1 actions begin]\
 """
 
 

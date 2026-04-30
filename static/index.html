@@ -1398,30 +1398,52 @@
       }
     });
 
-    // Task scaffold for Claude Code
-    const navOutput  = state.agentBuffers[5] || "";
-    const firstMove  = navOutput.match(/##\s*FIRST MOVE\s*\n([\s\S]+?)(?=\n##|$)/)?.[1]?.trim() || "";
-    const beachhead  = navOutput.match(/##\s*THE BEACHHEAD\s*\n([\s\S]+?)(?=\n##|$)/)?.[1]?.trim() || "";
-    const practPath  = navOutput.match(/##\s*THE PRACTICAL PATH\s*\n([\s\S]+?)(?=\n##|$)/)?.[1]?.trim() || "";
+    // Extract Navigator sections
+    const navOutput = state.agentBuffers[5] || "";
+    const extractSec = (heading) =>
+      navOutput.match(new RegExp(`##\\s*${heading}\\s*\\n([\\s\\S]+?)(?=\\n##|$)`))?.[1]?.trim() || "";
 
+    const callToAction = extractSec("CALL TO ACTION");
+    const firstMove    = extractSec("FIRST MOVE");
+    const beachhead    = extractSec("THE BEACHHEAD");
+    const practPath    = extractSec("THE PRACTICAL PATH");
+    const coreInsight  = extractSec("THE CORE INSIGHT");
+
+    // ── CALL TO ACTION — featured at top of document ──
+    if (callToAction || firstMove || beachhead) {
+      // Insert CTA right after the seed idea / context block (before the panel analysis)
+      const insertAt = lines.indexOf("## Panel Analysis");
+      const ctaLines = [
+        `## ◆ Call to Action`,
+        ``,
+      ];
+      if (coreInsight) ctaLines.push(`> ${coreInsight.replace(/\n/g, " ")}`, ``);
+      if (callToAction) {
+        ctaLines.push(callToAction, ``);
+      } else {
+        if (beachhead) ctaLines.push(`**Beachhead:**`, ``, beachhead, ``);
+        if (firstMove) ctaLines.push(`**First Move:**`, ``, firstMove, ``);
+        if (practPath) ctaLines.push(`**Practical Path:**`, ``, practPath, ``);
+      }
+      ctaLines.push(`---`, ``);
+      lines.splice(insertAt, 0, ...ctaLines);
+    }
+
+    // ── Task scaffold for Claude Code ──
     lines.push(
       `## Task for Claude Code`,
       ``,
-      `This is a complete IdeaStack brainstorming session. Use the Navigator's Blue Ocean Brief above as the product vision and the Street Fighter's analysis as the execution constraint.`,
+      `This is a complete IdeaStack brainstorming session. Use the Navigator's Blue Ocean Brief and the Call to Action above as the product vision and execution plan.`,
       ``,
       `**Seed idea:** ${state.seedIdea}`,
       ``,
-    );
-    if (firstMove)  lines.push(`**First Move (Navigator):**`, ``, firstMove, ``);
-    if (beachhead)  lines.push(`**Beachhead (Navigator):**`,  ``, beachhead, ``);
-    if (practPath)  lines.push(`**Practical Path:**`,         ``, practPath, ``);
-    lines.push(
       `**Instructions for Claude Code:**`,
-      `1. Read the Navigator's Blue Ocean Brief — it is the synthesis of all six analyses.`,
-      `2. Use the Street Fighter's MVP as the scope boundary for what to build first.`,
-      `3. Reference the Contrarian's failure modes as edge cases to test against.`,
-      `4. Implement the First Move as the immediate deliverable.`,
-      `5. Follow the Practical Path for phasing (Month 1-3 → 4-9 → 10-18).`,
+      `1. Read the Call to Action section — it is the actionable summary of everything.`,
+      `2. Read the Navigator's full Blue Ocean Brief for strategic context.`,
+      `3. Use the Street Fighter's MVP as the scope boundary for what to build first.`,
+      `4. Reference the Contrarian's failure modes as edge cases to guard against.`,
+      `5. Implement the "This week" actions from the Call to Action as the immediate deliverable.`,
+      `6. Phase delivery against the monthly milestones.`,
       ``,
       `---`,
       ``,
