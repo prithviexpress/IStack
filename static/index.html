@@ -1006,9 +1006,11 @@
     document.getElementById("output-md").classList.remove("visible");
     document.getElementById("output-md").style.display = "none";
 
-    // Show idea in header
+    // Show idea in header, with optional region tag
     const headerIdea = document.getElementById("header-idea");
-    headerIdea.textContent = `"${idea}"`;
+    const ctx = getContext();
+    const region = ctx.country || ctx.industry;
+    headerIdea.textContent = region ? `"${idea}"  ·  ${region}` : `"${idea}"`;
     headerIdea.classList.add("visible");
 
     initSidebar();
